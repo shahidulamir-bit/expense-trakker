@@ -52,6 +52,17 @@ def init_db(engine):
             CREATE INDEX IF NOT EXISTS idx_expenses_user_date
             ON expenses (user_id, expense_date DESC)
         """))
+if st.session_state.user is None:
+    login_tab, register_tab = st.tabs(["Login", "Create account"])
+
+    # আপনার Login ও Register code এখানে থাকবে
+
+    st.stop()
+
+# Dashboard code এখানে থাকবে
+
+
+
 
 def hash_password(password: str) -> bytes:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12))
