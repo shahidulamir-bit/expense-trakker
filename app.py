@@ -9,6 +9,10 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 st.set_page_config(page_title="Expense Tracker", page_icon="💰", layout="wide")
 
+# ---------- Session state ----------
+if "user" not in st.session_state:
+    st.session_state.user = None
+
 
 # ---------- Configuration ----------
 def get_database_url():
@@ -29,30 +33,42 @@ def get_engine(database_url: str):
 
 def init_db(engine):
     with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS users (
-                id BIGSERIAL PRIMARY KEY,
-                username VARCHAR(50) NOT NULL UNIQUE,
-                email VARCHAR(255) NOT NULL UNIQUE,
-                password_hash BYTEA NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id BIGSERIAL PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL UNIQUE,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    password_hash BYTEA NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
             )
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS expenses (
-                id BIGSERIAL PRIMARY KEY,
-                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                expense_date DATE NOT NULL,
-                category VARCHAR(80) NOT NULL,
-                amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
-                note VARCHAR(500) NOT NULL DEFAULT '',
-                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS expenses (
+                    id BIGSERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    expense_date DATE NOT NULL,
+                    category VARCHAR(80) NOT NULL,
+                    amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
+                    note VARCHAR(500) NOT NULL DEFAULT '',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
             )
-        """))
-        conn.execute(text("""
-            CREATE INDEX IF NOT EXISTS idx_expenses_user_date
-            ON expenses (user_id, expense_date DESC)
-        """))
+        )
+        conn.execute(
+            text(
+                """
+                CREATE INDEX IF NOT EXISTS idx_expenses_user_date
+                ON expenses (user_id, expense_date DESC)
+                """
+            )
+        )
 
 
 def hash_password(password: str) -> bytes:
@@ -72,13 +88,17 @@ def load_expenses(engine, user_id, start_date=None, end_date=None):
         WHERE user_id = :user_id
     """
     params = {"user_id": user_id}
+
     if start_date:
         sql += " AND expense_date >= :start_date"
         params["start_date"] = start_date
+
     if end_date:
         sql += " AND expense_date <= :end_date"
         params["end_date"] = end_date
+
     sql += " ORDER BY expense_date DESC, id DESC"
+
     with engine.connect() as conn:
         return pd.read_sql(text(sql), conn, params=params)
 
@@ -91,13 +111,26 @@ def money(value):
 st.markdown(
     """
     <style>
-        .block-container {padding-top: 1.8rem; max-width: 1200px;}
-        .hero {padding: 1.4rem 1.6rem; border-radius: 18px;
-               background: linear-gradient(120deg, #12372a, #436850); color: white;
-               margin-bottom: 1.2rem;}
-        .hero h1 {color: white; margin-bottom: .2rem;}
-        div[data-testid="stMetric"] {border: 1px solid rgba(128,128,128,.22);
-          border-radius: 14px; padding: 12px 16px;}
+        .block-container {
+            padding-top: 1.8rem;
+            max-width: 1200px;
+        }
+        .hero {
+            padding: 1.4rem 1.6rem;
+            border-radius: 18px;
+            background: linear-gradient(120deg, #12372a, #436850);
+            color: white;
+            margin-bottom: 1.2rem;
+        }
+        .hero h1 {
+            color: white;
+            margin-bottom: .2rem;
+        }
+        div[data-testid="stMetric"] {
+            border: 1px solid rgba(128,128,128,.22);
+            border-radius: 14px;
+            padding: 12px 16px;
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -108,6 +141,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ---------- Database validation ----------
 if not DATABASE_URL:
     st.error("Database is not configured yet.")
     st.markdown(
@@ -125,9 +159,6 @@ if not DATABASE_URL:
         """
     )
     st.stop()
-if not DATABASE_URL:
-    st.error("DATABASE_URL is missing in Streamlit Secrets.")
-    st.stop()
 
 try:
     engine = get_engine(DATABASE_URL)
@@ -144,6 +175,7 @@ except Exception as e:
     st.code(f"Error type: {type(e).__name__}")
     st.code(f"Error details: {str(e)}")
     st.stop()
+
 
 # ---------- Authentication ----------
 if st.session_state.user is None:
@@ -197,6 +229,7 @@ if st.session_state.user is None:
         if create_submitted:
             username = new_username.strip()
             email = new_email.strip().lower()
+
             if len(username) < 3 or not username.replace("_", "").isalnum():
                 st.error("Username must be at least 3 characters and use only letters, numbers, and underscores.")
             elif "@" not in email or "." not in email.split("@")[-1]:
@@ -230,13 +263,16 @@ if st.session_state.user is None:
     st.caption("Your account and expenses are stored in a shared PostgreSQL database. Each account can access only its own expenses.")
     st.stop()
 
+
 # ---------- Authenticated application ----------
 user = st.session_state.user
+
 with st.sidebar:
     st.success(f"Logged in as **{user['username']}**")
     st.caption(user["email"])
     page = st.radio("Navigation", ["Dashboard", "Add expense", "Manage expenses"], label_visibility="collapsed")
     st.divider()
+
     if st.button("Logout", use_container_width=True):
         st.session_state.user = None
         st.rerun()
@@ -291,6 +327,7 @@ if page == "Add expense":
 elif page == "Manage expenses":
     st.subheader("Manage your expenses")
     c1, c2 = st.columns(2)
+
     with c1:
         start_date = st.date_input("From", value=date.today() - timedelta(days=30), key="manage_start")
     with c2:
@@ -319,12 +356,14 @@ elif page == "Manage expenses":
             use_container_width=True,
             hide_index=True,
         )
+
         st.markdown("#### Delete an expense")
         expense_options = {
             f"#{int(row.id)} · {row.expense_date} · {row.category} · {money(row.amount)}": int(row.id)
             for row in df.itertuples(index=False)
         }
         chosen_label = st.selectbox("Select expense", list(expense_options.keys()))
+
         if st.button("Delete selected expense", type="secondary"):
             try:
                 with engine.begin() as conn:
@@ -349,6 +388,7 @@ else:
     st.subheader(f"Your dashboard, {user['username']}")
     today = date.today()
     month_start = today.replace(day=1)
+
     df = load_expenses(engine, user_id)
     if df.empty:
         st.info("You haven't added any expenses yet. Open **Add expense** to record your first one.")
@@ -356,6 +396,7 @@ else:
 
     df["amount"] = df["amount"].astype(float)
     df["expense_date"] = pd.to_datetime(df["expense_date"])
+
     month_df = df[(df["expense_date"].dt.date >= month_start) & (df["expense_date"].dt.date <= today)]
     total_all = df["amount"].sum()
     total_month = month_df["amount"].sum()
@@ -369,10 +410,12 @@ else:
     m4.metric("Top category this month", best_category)
 
     left, right = st.columns(2)
+
     with left:
         st.markdown("#### Spending by category")
         category_totals = df.groupby("category", as_index=False)["amount"].sum().sort_values("amount", ascending=False)
         st.bar_chart(category_totals, x="category", y="amount", use_container_width=True)
+
     with right:
         st.markdown("#### Monthly spending")
         monthly = df.assign(month=df["expense_date"].dt.to_period("M").astype(str)).groupby("month", as_index=False)["amount"].sum()
@@ -395,4 +438,3 @@ else:
         use_container_width=True,
         hide_index=True,
     )
-    @st.cache_resource
