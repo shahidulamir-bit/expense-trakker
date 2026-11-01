@@ -396,10 +396,3 @@ else:
         hide_index=True,
     )
     @st.cache_resource
-def get_engine(database_url: str):
-    return create_engine(
-        database_url,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        connect_args={"prepare_threshold": None}
-    )
