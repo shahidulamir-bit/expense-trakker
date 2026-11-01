@@ -1,12 +1,3 @@
-import streamlit as st
-
-st.write("APP VERSION: LOGIN TEST 1")
-
-if "user" not in st.session_state:
-    st.session_state.user = None
-
-st.write("Current user:", st.session_state.user)
-
 import os
 from datetime import date, timedelta
 
@@ -18,6 +9,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 st.set_page_config(page_title="Expense Tracker", page_icon="💰", layout="wide")
 
+
 # ---------- Configuration ----------
 def get_database_url():
     try:
@@ -26,11 +18,14 @@ def get_database_url():
         url = ""
     return url or os.getenv("DATABASE_URL", "")
 
+
 DATABASE_URL = get_database_url()
+
 
 @st.cache_resource
 def get_engine(database_url: str):
     return create_engine(database_url, pool_pre_ping=True, pool_recycle=300)
+
 
 def init_db(engine):
     with engine.begin() as conn:
@@ -59,126 +54,16 @@ def init_db(engine):
             ON expenses (user_id, expense_date DESC)
         """))
 
-if st.session_state.user is None:
-
-    login_tab, register_tab = st.tabs(
-        ["Login", "Create account"]
-    )
-
-    # ---------------- LOGIN TAB ----------------
-    with login_tab:
-        st.subheader("Welcome back")
-
-        with st.form("login_form"):
-            login_name = st.text_input("Username or email")
-            login_password = st.text_input(
-                "Password", type="password"
-            )
-
-            login_submitted = st.form_submit_button(
-                "Login",
-                type="primary",
-                use_container_width=True
-            )
-
-        if login_submitted:
-            # এখানে আপনার আগের Login authentication code রাখুন
-            
-
-    # ---------------- REGISTER TAB ----------------
-    with register_tab:
-        st.subheader("Create your account")
-
-        with st.form("register_form"):
-            new_username = st.text_input("Username")
-            new_email = st.text_input("Email")
-            new_password = st.text_input(
-                "Password", type="password"
-            )
-            confirm_password = st.text_input(
-                "Confirm Password", type="password"
-            )
-
-            register_submitted = st.form_submit_button(
-                "Create account",
-                type="primary",
-                use_container_width=True
-            )
-
-        if register_submitted:
-            username = new_username.strip()
-            email = new_email.strip().lower()
-
-            if not username or not email or not new_password:
-                st.error("Please fill in all fields.")
-
-            elif new_password != confirm_password:
-                st.error("Passwords do not match.")
-
-            elif len(new_password) < 8:
-                st.error("Password must be at least 8 characters.")
-
-            else:
-                try:
-                    password_hash = hash_password(new_password)
-
-                    with engine.begin() as conn:
-                        existing = conn.execute(
-                            text("""
-                                SELECT id FROM users
-                                WHERE lower(username) = lower(:username)
-                                   OR lower(email) = lower(:email)
-                            """),
-                            {
-                                "username": username,
-                                "email": email
-                            }
-                        ).fetchone()
-
-                        if existing:
-                            st.error(
-                                "Username or email already exists."
-                            )
-                        else:
-                            conn.execute(
-                                text("""
-                                    INSERT INTO users
-                                    (username, email, password_hash)
-                                    VALUES (:username, :email, :password_hash)
-                                """),
-                                {
-                                    "username": username,
-                                    "email": email,
-                                    "password_hash": password_hash
-                                }
-                            )
-
-                            st.success(
-                                "Account created successfully! Please Login."
-                            )
-
-                except Exception as e:
-                    st.error(f"Registration failed: {e}")
-
-    # Dashboard যেন Login-এর আগে না চলে
-    st.stop()
-
-
-# ---------------- DASHBOARD ----------------
-# আপনার আগের Dashboard code এখানে থাকবে
-
-# Dashboard code এখানে থাকবে
-
-
-
 
 def hash_password(password: str) -> bytes:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12))
+
 
 def verify_password(password: str, stored_hash: bytes) -> bool:
     if isinstance(stored_hash, memoryview):
         stored_hash = stored_hash.tobytes()
     return bcrypt.checkpw(password.encode("utf-8"), stored_hash)
+
 
 def load_expenses(engine, user_id, start_date=None, end_date=None):
     sql = """
@@ -197,38 +82,48 @@ def load_expenses(engine, user_id, start_date=None, end_date=None):
     with engine.connect() as conn:
         return pd.read_sql(text(sql), conn, params=params)
 
+
 def money(value):
     return f"৳{float(value):,.2f}"
 
-# ---------- Styling ----------
-st.markdown("""
-<style>
-    .block-container {padding-top: 1.8rem; max-width: 1200px;}
-    .hero {padding: 1.4rem 1.6rem; border-radius: 18px;
-           background: linear-gradient(120deg, #12372a, #436850); color: white;
-           margin-bottom: 1.2rem;}
-    .hero h1 {color: white; margin-bottom: .2rem;}
-    div[data-testid="stMetric"] {border: 1px solid rgba(128,128,128,.22);
-      border-radius: 14px; padding: 12px 16px;}
-</style>
-""", unsafe_allow_html=True)
 
-st.markdown('<div class="hero"><h1>💰 Expense Tracker</h1><p>Track your spending, understand your habits, and stay in control.</p></div>', unsafe_allow_html=True)
+# ---------- Styling ----------
+st.markdown(
+    """
+    <style>
+        .block-container {padding-top: 1.8rem; max-width: 1200px;}
+        .hero {padding: 1.4rem 1.6rem; border-radius: 18px;
+               background: linear-gradient(120deg, #12372a, #436850); color: white;
+               margin-bottom: 1.2rem;}
+        .hero h1 {color: white; margin-bottom: .2rem;}
+        div[data-testid="stMetric"] {border: 1px solid rgba(128,128,128,.22);
+          border-radius: 14px; padding: 12px 16px;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    '<div class="hero"><h1>💰 Expense Tracker</h1><p>Track your spending, understand your habits, and stay in control.</p></div>',
+    unsafe_allow_html=True,
+)
 
 if not DATABASE_URL:
     st.error("Database is not configured yet.")
-    st.markdown("""
-    **Set up PostgreSQL first:**
-    1. Create a PostgreSQL database using Supabase, Neon, or another provider.
-    2. In Streamlit Cloud, open your app's **Settings → Secrets**.
-    3. Add this secret, replacing the placeholder with your real connection string:
+    st.markdown(
+        """
+        **Set up PostgreSQL first:**
+        1. Create a PostgreSQL database using Supabase, Neon, or another provider.
+        2. In Streamlit Cloud, open your app's **Settings → Secrets**.
+        3. Add this secret, replacing the placeholder with your real connection string:
 
-    ```toml
-    DATABASE_URL = "postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require"
-    ```
+        ```toml
+        DATABASE_URL = "postgresql+psycopg://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require"
+        ```
 
-    Keep the real database URL private and never commit it to GitHub.
-    """)
+        Keep the real database URL private and never commit it to GitHub.
+        """
+    )
     st.stop()
 
 try:
@@ -251,17 +146,24 @@ if st.session_state.user is None:
             login_name = st.text_input("Username or email")
             login_password = st.text_input("Password", type="password")
             submitted = st.form_submit_button("Login", type="primary", use_container_width=True)
+
         if submitted:
             identity = login_name.strip()
             try:
                 with engine.connect() as conn:
-                    row = conn.execute(text("""
-                        SELECT id, username, email, password_hash
-                        FROM users
-                        WHERE lower(username) = lower(:identity)
-                           OR lower(email) = lower(:identity)
-                        LIMIT 1
-                    """), {"identity": identity}).mappings().first()
+                    row = conn.execute(
+                        text(
+                            """
+                            SELECT id, username, email, password_hash
+                            FROM users
+                            WHERE lower(username) = lower(:identity)
+                               OR lower(email) = lower(:identity)
+                            LIMIT 1
+                            """
+                        ),
+                        {"identity": identity},
+                    ).mappings().first()
+
                 if row and verify_password(login_password, row["password_hash"]):
                     st.session_state.user = {
                         "id": int(row["id"]),
@@ -297,14 +199,19 @@ if st.session_state.user is None:
             else:
                 try:
                     with engine.begin() as conn:
-                        conn.execute(text("""
-                            INSERT INTO users (username, email, password_hash)
-                            VALUES (:username, :email, :password_hash)
-                        """), {
-                            "username": username,
-                            "email": email,
-                            "password_hash": hash_password(new_password),
-                        })
+                        conn.execute(
+                            text(
+                                """
+                                INSERT INTO users (username, email, password_hash)
+                                VALUES (:username, :email, :password_hash)
+                                """
+                            ),
+                            {
+                                "username": username,
+                                "email": email,
+                                "password_hash": hash_password(new_password),
+                            },
+                        )
                     st.success("Account created. Please log in.")
                 except IntegrityError:
                     st.error("That username or email is already registered.")
@@ -331,26 +238,43 @@ if page == "Add expense":
     st.subheader("Add a new expense")
     with st.form("add_expense_form", clear_on_submit=True):
         expense_date = st.date_input("Date", value=date.today())
-        category = st.selectbox("Category", [
-            "Food", "Transport", "Rent", "Medical", "Shopping",
-            "Utilities", "Education", "Entertainment", "Family", "Other"
-        ])
+        category = st.selectbox(
+            "Category",
+            [
+                "Food",
+                "Transport",
+                "Rent",
+                "Medical",
+                "Shopping",
+                "Utilities",
+                "Education",
+                "Entertainment",
+                "Family",
+                "Other",
+            ],
+        )
         amount = st.number_input("Amount (BDT ৳)", min_value=0.01, value=100.00, step=10.00, format="%.2f")
         note = st.text_input("Note (optional)", max_chars=500, placeholder="e.g. Bus fare, groceries")
         saved = st.form_submit_button("Save expense", type="primary", use_container_width=True)
+
     if saved:
         try:
             with engine.begin() as conn:
-                conn.execute(text("""
-                    INSERT INTO expenses (user_id, expense_date, category, amount, note)
-                    VALUES (:user_id, :expense_date, :category, :amount, :note)
-                """), {
-                    "user_id": user_id,
-                    "expense_date": expense_date,
-                    "category": category,
-                    "amount": amount,
-                    "note": note.strip(),
-                })
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO expenses (user_id, expense_date, category, amount, note)
+                        VALUES (:user_id, :expense_date, :category, :amount, :note)
+                        """
+                    ),
+                    {
+                        "user_id": user_id,
+                        "expense_date": expense_date,
+                        "category": category,
+                        "amount": amount,
+                        "note": note.strip(),
+                    },
+                )
             st.success("Expense saved to your account.")
         except SQLAlchemyError:
             st.error("Could not save this expense. Please try again.")
@@ -362,19 +286,30 @@ elif page == "Manage expenses":
         start_date = st.date_input("From", value=date.today() - timedelta(days=30), key="manage_start")
     with c2:
         end_date = st.date_input("To", value=date.today(), key="manage_end")
+
     if start_date > end_date:
         st.warning("The start date must be before the end date.")
         st.stop()
+
     df = load_expenses(engine, user_id, start_date, end_date)
     if df.empty:
         st.info("No expenses found for this date range.")
     else:
         view = df.copy()
         view["amount"] = view["amount"].astype(float)
-        st.dataframe(view.rename(columns={
-            "id": "ID", "expense_date": "Date", "category": "Category",
-            "amount": "Amount (BDT)", "note": "Note"
-        }), use_container_width=True, hide_index=True)
+        st.dataframe(
+            view.rename(
+                columns={
+                    "id": "ID",
+                    "expense_date": "Date",
+                    "category": "Category",
+                    "amount": "Amount (BDT)",
+                    "note": "Note",
+                }
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
         st.markdown("#### Delete an expense")
         expense_options = {
             f"#{int(row.id)} · {row.expense_date} · {row.category} · {money(row.amount)}": int(row.id)
@@ -384,10 +319,15 @@ elif page == "Manage expenses":
         if st.button("Delete selected expense", type="secondary"):
             try:
                 with engine.begin() as conn:
-                    result = conn.execute(text("""
-                        DELETE FROM expenses
-                        WHERE id = :expense_id AND user_id = :user_id
-                    """), {"expense_id": expense_options[chosen_label], "user_id": user_id})
+                    result = conn.execute(
+                        text(
+                            """
+                            DELETE FROM expenses
+                            WHERE id = :expense_id AND user_id = :user_id
+                            """
+                        ),
+                        {"expense_id": expense_options[chosen_label], "user_id": user_id},
+                    )
                 if result.rowcount:
                     st.success("Expense deleted.")
                     st.rerun()
@@ -433,7 +373,16 @@ else:
     recent = df.head(10).copy()
     recent["expense_date"] = recent["expense_date"].dt.date
     recent["amount"] = recent["amount"].map(money)
-    st.dataframe(recent.rename(columns={
-        "id": "ID", "expense_date": "Date", "category": "Category",
-        "amount": "Amount", "note": "Note"
-    }), use_container_width=True, hide_index=True)
+    st.dataframe(
+        recent.rename(
+            columns={
+                "id": "ID",
+                "expense_date": "Date",
+                "category": "Category",
+                "amount": "Amount",
+                "note": "Note",
+            }
+        ),
+        use_container_width=True,
+        hide_index=True,
+    )
