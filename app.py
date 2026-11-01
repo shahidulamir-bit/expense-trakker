@@ -125,16 +125,25 @@ if not DATABASE_URL:
         """
     )
     st.stop()
+if not DATABASE_URL:
+    st.error("DATABASE_URL is missing in Streamlit Secrets.")
+    st.stop()
 
 try:
     engine = get_engine(DATABASE_URL)
-    init_db(engine)
-except Exception:
-    st.error("Could not connect to the database. Check DATABASE_URL in Streamlit Secrets and confirm your database is running.")
-    st.stop()
 
-if "user" not in st.session_state:
-    st.session_state.user = None
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+
+    st.success("Database connection successful!")
+
+    init_db(engine)
+
+except Exception as e:
+    st.error("Database connection failed.")
+    st.code(f"Error type: {type(e).__name__}")
+    st.code(f"Error details: {str(e)}")
+    st.stop()
 
 # ---------- Authentication ----------
 if st.session_state.user is None:
