@@ -1,5 +1,11 @@
+import streamlit as st
+
+st.write("APP VERSION: LOGIN TEST 1")
+
 if "user" not in st.session_state:
     st.session_state.user = None
+
+st.write("Current user:", st.session_state.user)
 
 import os
 from datetime import date, timedelta
