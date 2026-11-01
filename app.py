@@ -1,6 +1,6 @@
 import os
 from datetime import date, timedelta
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse, urlunparse
 
 import bcrypt
 import pandas as pd
@@ -29,6 +29,28 @@ def normalize_database_url(url: str) -> str:
         url = url.replace("postgres://", "postgresql+psycopg://", 1)
 
     parsed = urlparse(url)
+
+    if parsed.username is not None or parsed.password is not None:
+        username = quote(unquote(parsed.username or ""), safe="")
+        password = quote(unquote(parsed.password or ""), safe="")
+
+        userinfo = username
+        if parsed.password is not None:
+            userinfo = f"{userinfo}:{password}"
+        if userinfo:
+            userinfo += "@"
+
+        host = parsed.hostname or ""
+        if ":" in host and not host.startswith("["):
+            host = f"[{host}]"
+
+        netloc = userinfo + host
+        if parsed.port is not None:
+            netloc += f":{parsed.port}"
+
+        parsed = parsed._replace(netloc=netloc)
+        url = urlunparse(parsed)
+
     query = dict(parse_qsl(parsed.query, keep_blank_values=True))
 
     if ".supabase.co" in (parsed.hostname or "") and "sslmode" not in query:
@@ -475,3 +497,4 @@ else:
         use_container_width=True,
         hide_index=True,
     )
+
