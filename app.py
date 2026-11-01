@@ -58,12 +58,114 @@ def init_db(engine):
             CREATE INDEX IF NOT EXISTS idx_expenses_user_date
             ON expenses (user_id, expense_date DESC)
         """))
+
 if st.session_state.user is None:
-    login_tab, register_tab = st.tabs(["Login", "Create account"])
 
-    # আপনার Login ও Register code এখানে থাকবে
+    login_tab, register_tab = st.tabs(
+        ["Login", "Create account"]
+    )
 
+    # ---------------- LOGIN TAB ----------------
+    with login_tab:
+        st.subheader("Welcome back")
+
+        with st.form("login_form"):
+            login_name = st.text_input("Username or email")
+            login_password = st.text_input(
+                "Password", type="password"
+            )
+
+            login_submitted = st.form_submit_button(
+                "Login",
+                type="primary",
+                use_container_width=True
+            )
+
+        if login_submitted:
+            # এখানে আপনার আগের Login authentication code রাখুন
+            
+
+    # ---------------- REGISTER TAB ----------------
+    with register_tab:
+        st.subheader("Create your account")
+
+        with st.form("register_form"):
+            new_username = st.text_input("Username")
+            new_email = st.text_input("Email")
+            new_password = st.text_input(
+                "Password", type="password"
+            )
+            confirm_password = st.text_input(
+                "Confirm Password", type="password"
+            )
+
+            register_submitted = st.form_submit_button(
+                "Create account",
+                type="primary",
+                use_container_width=True
+            )
+
+        if register_submitted:
+            username = new_username.strip()
+            email = new_email.strip().lower()
+
+            if not username or not email or not new_password:
+                st.error("Please fill in all fields.")
+
+            elif new_password != confirm_password:
+                st.error("Passwords do not match.")
+
+            elif len(new_password) < 8:
+                st.error("Password must be at least 8 characters.")
+
+            else:
+                try:
+                    password_hash = hash_password(new_password)
+
+                    with engine.begin() as conn:
+                        existing = conn.execute(
+                            text("""
+                                SELECT id FROM users
+                                WHERE lower(username) = lower(:username)
+                                   OR lower(email) = lower(:email)
+                            """),
+                            {
+                                "username": username,
+                                "email": email
+                            }
+                        ).fetchone()
+
+                        if existing:
+                            st.error(
+                                "Username or email already exists."
+                            )
+                        else:
+                            conn.execute(
+                                text("""
+                                    INSERT INTO users
+                                    (username, email, password_hash)
+                                    VALUES (:username, :email, :password_hash)
+                                """),
+                                {
+                                    "username": username,
+                                    "email": email,
+                                    "password_hash": password_hash
+                                }
+                            )
+
+                            st.success(
+                                "Account created successfully! Please Login."
+                            )
+
+                except Exception as e:
+                    st.error(f"Registration failed: {e}")
+
+    # Dashboard যেন Login-এর আগে না চলে
     st.stop()
+
+
+# ---------------- DASHBOARD ----------------
+# আপনার আগের Dashboard code এখানে থাকবে
 
 # Dashboard code এখানে থাকবে
 
