@@ -1,8 +1,7 @@
 import os
 from datetime import date, timedelta
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlparse, urlunparse
-import socket
-print(socket.getaddrinfo("db.alioiscogoxkblvobuix.supabase.co", 5432))
+
 import bcrypt
 import pandas as pd
 import streamlit as st
