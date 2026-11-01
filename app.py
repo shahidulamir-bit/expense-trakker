@@ -1,5 +1,6 @@
 import os
 from datetime import date, timedelta
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import bcrypt
 import pandas as pd
@@ -15,12 +16,39 @@ if "user" not in st.session_state:
 
 
 # ---------- Configuration ----------
+def normalize_database_url(url: str) -> str:
+    """Normalize common PostgreSQL connection strings for SQLAlchemy/psycopg."""
+    if not url:
+        return ""
+
+    url = url.strip()
+
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg://", 1)
+
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+
+    if ".supabase.co" in (parsed.hostname or "") and "sslmode" not in query:
+        query["sslmode"] = "require"
+
+    query.pop("pgbouncer", None)
+
+    if query:
+        parsed = parsed._replace(query=urlencode(query))
+        url = urlunparse(parsed)
+
+    return url
+
+
 def get_database_url():
     try:
         url = st.secrets.get("DATABASE_URL", "")
     except Exception:
         url = ""
-    return url or os.getenv("DATABASE_URL", "")
+    return normalize_database_url(url or os.getenv("DATABASE_URL", ""))
 
 
 DATABASE_URL = get_database_url()
@@ -174,6 +202,15 @@ except Exception as e:
     st.error("Database connection failed.")
     st.code(f"Error type: {type(e).__name__}")
     st.code(f"Error details: {str(e)}")
+    st.markdown(
+        """
+        Common fixes:
+        - Use the direct PostgreSQL URL, not the PgBouncer pooler URL.
+        - For Supabase, prefer `postgresql+psycopg://...@db.<project>.supabase.co:5432/postgres?sslmode=require`.
+        - Remove any `?pgbouncer=true` value from the database URL.
+        - Verify the secret name is exactly `DATABASE_URL` and restart the app.
+        """
+    )
     st.stop()
 
 
